@@ -85,7 +85,7 @@ The API will be available at `http://127.0.0.1:8000/`
 
 ### 6. Access API Documentation
 
-Visit `http://127.0.0.1:8000/swagger/` for interactive API documentation.
+Visit `http://127.0.0.1:8000/api/docs/` for interactive API documentation.
 
 ## 📁 Project Structure
 
@@ -201,7 +201,9 @@ GET /api/v1/rides/?lat=40.7128&lon=-74.0060&sort_by=distance
 
 ## 🧪 Testing
 
-### Run Tests
+### Test Framework
+
+The project uses Django's built-in test framework. Test cases can be added to `rides/tests.py` as needed.
 
 ```bash
 # Run all tests
@@ -209,10 +211,6 @@ python manage.py test
 
 # Run specific app tests
 python manage.py test rides
-
-# Run with coverage
-coverage run --source='.' manage.py test
-coverage report
 ```
 
 ### Test Data
@@ -334,7 +332,7 @@ The API includes comprehensive logging for:
 
 For support and questions:
 
-1. Check the [API Documentation](http://127.0.0.1:8000/swagger/)
+1. Check the [API Documentation](http://127.0.0.1:8000/api/docs/)
 2. Review the [Troubleshooting](#troubleshooting) section
 3. Create an issue in the repository
 4. Contact the development team
