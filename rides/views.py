@@ -1184,7 +1184,7 @@ class RideViewSet(viewsets.ModelViewSet):
     def get_serializer_class(self):
         if self.action == 'create':
             return RideCreateSerializer
-        elif self.action in ['update_status', 'partial_update']:
+        elif self.action == 'update_status':
             return RideStatusUpdateSerializer
         return RideSerializer
     
@@ -1526,21 +1526,21 @@ class RideEventViewSet(viewsets.ModelViewSet):
                     status=status.HTTP_400_BAD_REQUEST
                 )
             
-            if not request.data.get('id_ride'):
-                logger.warning("Ride event creation failed: Missing id_ride")
+            if not request.data.get('id_ride_input'):
+                logger.warning("Ride event creation failed: Missing id_ride_input")
                 return Response(
-                    {"error": "Ride ID (id_ride) is required"},
+                    {"error": "Ride ID (id_ride_input) is required"},
                     status=status.HTTP_400_BAD_REQUEST
                 )
             
             # Validate ride exists
             try:
-                ride_id = int(request.data.get('id_ride'))
+                ride_id = int(request.data.get('id_ride_input'))
                 from .models import Ride
                 ride = Ride.objects.get(id_ride=ride_id)
                 logger.info(f"Validated ride exists: {ride_id}")
             except (ValueError, Ride.DoesNotExist):
-                logger.warning(f"Ride event creation failed: Invalid or non-existent ride ID: {request.data.get('id_ride')}")
+                logger.warning(f"Ride event creation failed: Invalid or non-existent ride ID: {request.data.get('id_ride_input')}")
                 return Response(
                     {"error": "Invalid or non-existent ride ID"},
                     status=status.HTTP_404_NOT_FOUND

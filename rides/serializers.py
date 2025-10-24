@@ -393,7 +393,7 @@ class RideEventSerializer(serializers.ModelSerializer):
     Serializer for RideEvent model
     """
     id_ride = serializers.IntegerField(source='id_ride.id_ride', read_only=True)
-    id_ride_input = serializers.IntegerField(write_only=True, required=False, source='id_ride')
+    id_ride_input = serializers.IntegerField(write_only=True, required=True, source='id_ride')
     
     class Meta:
         model = RideEvent
@@ -438,8 +438,8 @@ class RideSerializer(serializers.ModelSerializer):
     events = RideEventSerializer(many=True, read_only=True)
     todays_ride_events = serializers.SerializerMethodField()
     distance_to_pickup = serializers.SerializerMethodField()
-    rider_id = serializers.IntegerField(write_only=True, source='id_rider_id')
-    driver_id = serializers.IntegerField(write_only=True, source='id_driver_id', required=False)
+    rider_id = serializers.IntegerField(write_only=True, required=False)
+    driver_id = serializers.IntegerField(write_only=True, required=False)
     
     class Meta:
         model = Ride
@@ -484,6 +484,35 @@ class RideSerializer(serializers.ModelSerializer):
                 except (ValueError, TypeError):
                     pass
         return None
+    
+    def update(self, instance, validated_data):
+        """
+        Update ride instance with proper handling of driver_id and rider_id fields
+        """
+        # Handle driver_id update
+        if 'driver_id' in validated_data:
+            driver_id = validated_data.pop('driver_id')
+            try:
+                driver = User.objects.get(id_user=driver_id)
+                instance.id_driver = driver
+            except User.DoesNotExist:
+                raise serializers.ValidationError(f"Driver with id {driver_id} does not exist")
+        
+        # Handle rider_id update
+        if 'rider_id' in validated_data:
+            rider_id = validated_data.pop('rider_id')
+            try:
+                rider = User.objects.get(id_user=rider_id)
+                instance.id_rider = rider
+            except User.DoesNotExist:
+                raise serializers.ValidationError(f"Rider with id {rider_id} does not exist")
+        
+        # Update other fields
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        
+        instance.save()
+        return instance
 
 
 class RideCreateSerializer(serializers.ModelSerializer):

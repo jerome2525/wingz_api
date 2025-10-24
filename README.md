@@ -199,6 +199,115 @@ GET /api/v1/rides/?lat=40.7128&lon=-74.0060&sort_by=distance
 - **Pickup Time**: Sort by scheduled pickup time
 - **Created Date**: Sort by creation time
 
+## 📊 SQL Reporting Queries
+
+### Trip Duration Report
+
+For reporting purposes, we need to analyze trips that took more than 1 hour from pickup to dropoff, grouped by month and driver.
+
+#### Raw SQL Query
+
+```sql
+SELECT 
+    strftime('%Y-%m', pickup_event.created_at) as Month,
+    (driver.first_name || ' ' || substr(driver.last_name, 1, 1)) as Driver,
+    COUNT(*) as "Count of Trips > 1 hr"
+FROM rides r
+INNER JOIN users driver ON r.id_driver = driver.id_user
+INNER JOIN ride_events pickup_event ON r.id_ride = pickup_event.id_ride 
+    AND pickup_event.description = 'Status changed to pickup'
+INNER JOIN ride_events dropoff_event ON r.id_ride = dropoff_event.id_ride 
+    AND dropoff_event.description = 'Status changed to dropoff'
+    AND dropoff_event.created_at > pickup_event.created_at
+WHERE (julianday(dropoff_event.created_at) - julianday(pickup_event.created_at)) * 24 > 1
+GROUP BY Month, Driver
+ORDER BY Month, Driver;
+```
+
+#### Testing the SQL Query
+
+**Option 1: Direct SQL Execution**
+
+You can run this SQL query directly in your database:
+
+```sql
+SELECT 
+    strftime('%Y-%m', pickup_event.created_at) as Month,
+    (driver.first_name || ' ' || substr(driver.last_name, 1, 1)) as Driver,
+    COUNT(*) as "Count of Trips > 1 hr"
+FROM rides r
+INNER JOIN users driver ON r.id_driver = driver.id_user
+INNER JOIN ride_events pickup_event ON r.id_ride = pickup_event.id_ride 
+    AND pickup_event.description = 'Status changed to pickup'
+INNER JOIN ride_events dropoff_event ON r.id_ride = dropoff_event.id_ride 
+    AND dropoff_event.description = 'Status changed to dropoff'
+    AND dropoff_event.created_at > pickup_event.created_at
+WHERE (julianday(dropoff_event.created_at) - julianday(pickup_event.created_at)) * 24 > 1
+GROUP BY Month, Driver
+ORDER BY Month, Driver;
+```
+
+**Option 2: Python Test Script**
+
+To test this SQL query against your database, use the provided test script:
+
+```bash
+python test_sql_query.py
+```
+
+This script will:
+- Check your database for rides, drivers, and events
+- Show actual trip durations in your data
+- Test the SQL query with different thresholds
+- Help you understand why results might be empty
+
+#### Sample Output
+
+| Month   | Driver | Count of Trips > 1 hr |
+|---------|--------|----------------------|
+| 2024-01 | Chris H| 4                    |
+| 2024-01 | Howard Y| 5                   |
+| 2024-01 | Randy W| 2                    |
+| 2024-02 | Chris H| 7                    |
+| 2024-02 | Howard Y| 5                   |
+| 2024-03 | Chris H| 2                    |
+| 2024-03 | Howard Y| 2                   |
+| 2024-03 | Randy W| 11                   |
+| 2024-04 | Howard Y| 7                   |
+| 2024-04 | Randy W| 3                    |
+
+#### Query Explanation
+
+This query:
+
+1. **Joins the tables**: `rides`, `users` (as driver), and `ride_events` (twice for pickup and dropoff events)
+2. **Filters events**: Finds pickup events with description "Status changed to pickup" and dropoff events with "Status changed to dropoff"
+3. **Calculates duration**: Uses SQLite's `julianday()` function to calculate the time difference in hours
+4. **Filters long trips**: Only includes trips where duration > 1 hour
+5. **Groups results**: By month (YYYY-MM format) and driver name (first name + last initial)
+6. **Orders output**: By month and driver for consistent reporting
+
+#### Common Issues & Solutions
+
+**No results returned?** This usually means:
+- No rides have drivers assigned (`id_driver` is NULL)
+- No pickup/dropoff events exist with exact descriptions
+- All trips are shorter than 1 hour
+- Event timestamps are identical (pickup = dropoff)
+
+**To create test data with longer trips:**
+1. Create rides via `POST /api/v1/rides/`
+2. Assign drivers via `PUT /api/v1/rides/{id}/` with `driver_id`
+3. Create pickup events via `POST /api/v1/ride-events/`
+4. Wait or manually set later timestamps for dropoff events
+
+#### Assumptions
+
+- RideEvent records exist with descriptions "Status changed to pickup" and "Status changed to dropoff"
+- Each ride has exactly one pickup event and one dropoff event
+- Driver information is available through the `id_driver` foreign key in the rides table
+- The database uses SQLite (julianday function)
+
 ## 🧪 Testing
 
 ### Test Framework

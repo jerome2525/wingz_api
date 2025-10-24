@@ -1,0 +1,392 @@
+# Wingz API - Enterprise Standards & Cursor Rules
+
+## 🎯 Project Overview
+This is a Django REST API for a ride-sharing platform with enterprise-grade standards for security, validation, error handling, and documentation.
+
+## 🏗️ Architecture Standards
+
+### Project Structure
+```
+wingz_api/
+├── manage.py
+├── requirements.txt
+├── README.md
+├── .cursorrules                    # This file
+├── wingz_api/                     # Main Django project
+│   ├── __init__.py
+│   ├── settings.py
+│   ├── urls.py
+│   ├── views.py                   # General API views
+│   └── wsgi.py
+└── rides/                         # Main app
+    ├── __init__.py
+    ├── models.py                  # Database models
+    ├── serializers.py             # DRF serializers
+    ├── views.py                   # API ViewSets
+    ├── permissions.py             # Custom permissions
+    ├── filters.py                 # Custom filtering
+    ├── admin.py                   # Django admin
+    └── urls.py                    # App URLs
+```
+
+## 🔐 Security Standards
+
+### Authentication & Authorization
+- **JWT Authentication**: Use `djangorestframework-simplejwt` for token-based auth
+- **Role-Based Access**: Implement role-based permissions (admin, rider, driver)
+- **Permission Classes**: Use `IsAuthenticated`, `IsOwnerOrReadOnly`, `IsDriverOrRider`
+- **Registration**: Allow `AllowAny` for user creation, require auth for other operations
+
+### Input Validation
+- **Password Strength**: Minimum 8 characters, uppercase, lowercase, digit, special character
+- **Email Format**: Strict regex validation for email addresses
+- **Phone Format**: International format only (+ prefix, 10-15 digits)
+- **Character Restrictions**: Phone numbers only allow digits, +, spaces, hyphens, parentheses
+- **Unique Constraints**: Enforce email and phone number uniqueness
+
+### Data Protection
+- **SQL Injection Prevention**: Use Django ORM exclusively
+- **XSS Protection**: Proper input sanitization
+- **CSRF Protection**: Django's built-in CSRF middleware
+- **CORS Configuration**: Proper CORS settings for development/production
+
+## 🚨 Error Handling Standards
+
+### Custom Exception Classes
+```python
+class UserCreationError(Exception):
+    """Custom exception for user creation errors"""
+    def __init__(self, message, error_code=None, details=None):
+        self.message = message
+        self.error_code = error_code
+        self.details = details
+        super().__init__(self.message)
+```
+
+### Error Response Format
+```python
+{
+    "success": False,
+    "message": "Human-readable error message",
+    "error_code": "MACHINE_READABLE_CODE",
+    "details": {"field": "specific error details"},
+    "timestamp": "2025-01-22T10:30:00Z"
+}
+```
+
+### HTTP Status Codes
+- **201 Created**: Successful resource creation
+- **400 Bad Request**: Validation errors
+- **409 Conflict**: Resource already exists (email/phone conflicts)
+- **500 Internal Server Error**: Unexpected errors
+
+### Error Codes
+- `EMAIL_EXISTS`: Email address already registered
+- `PHONE_EXISTS`: Phone number already registered
+- `USERNAME_EXISTS`: Username already taken
+- `VALIDATION_ERROR`: Input validation failed
+- `DATA_CONFLICT`: Database constraint violation
+- `AUTH_CREATION_FAILED`: Authentication account creation failed
+- `LINKING_FAILED`: Failed to link custom user to Django user
+- `UNEXPECTED_ERROR`: Unexpected system error
+
+## 📋 Response Format Standards
+
+### Success Response Format
+```python
+{
+    "success": True,
+    "message": "Operation completed successfully",
+    "data": {
+        "id": 123,
+        "field1": "value1",
+        "field2": "value2",
+        "created_at": "2025-01-22T10:30:00Z"
+    }
+}
+```
+
+### Pagination Format
+```python
+{
+    "count": 100,
+    "next": "http://api.example.com/users/?page=2",
+    "previous": null,
+    "results": [...]
+}
+```
+
+## 🔍 Validation Standards
+
+### Password Validation
+```python
+def validate_password_strength(password):
+    """Validate password strength:
+    - At least 8 characters
+    - At least one uppercase letter
+    - At least one lowercase letter
+    - At least one digit
+    - At least one special character
+    """
+```
+
+### Email Validation
+```python
+def validate_email_format(email):
+    """Validate email format using strict regex"""
+    pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+```
+
+### Phone Validation
+```python
+def validate_phone_format(phone):
+    """Validate phone number format (strict international format only)
+    - Must start with +
+    - 10-15 digits after +
+    - Only allow digits, +, spaces, hyphens, parentheses
+    - Reject all identical digits
+    """
+```
+
+## 📚 Documentation Standards
+
+### Swagger/OpenAPI Integration
+- Use `drf-spectacular` for API documentation
+- Include comprehensive field descriptions
+- Provide multiple example scenarios
+- Document all error responses
+- Include role descriptions and use cases
+
+### Field Documentation
+```python
+field_name = serializers.CharField(
+    help_text="Detailed description of the field and its requirements"
+)
+```
+
+### Role Documentation
+```python
+role = serializers.ChoiceField(
+    choices=User.ROLE_CHOICES,
+    help_text="""User role determines permissions and access level:
+
+    • **admin**: Full system access
+      - Manage all users, rides, and events
+      - View system analytics and reports
+      - Configure system settings
+      - Access admin dashboard
+
+    • **rider**: Customer role for booking rides
+      - Request and book rides
+      - View ride history and status
+      - Rate and review drivers
+      - Manage personal profile
+
+    • **driver**: Service provider role
+      - Accept and manage ride requests
+      - Update ride status (en-route, pickup, dropoff)
+      - View assigned rides and earnings
+      - Manage availability status"""
+)
+```
+
+## ⚡ Performance Standards
+
+### Database Optimization
+- Use `select_related()` for foreign key relationships
+- Use `prefetch_related()` for many-to-many and reverse foreign key relationships
+- Use `Prefetch` objects for custom prefetch queries
+- Minimize database queries (aim for 2-3 queries per endpoint)
+
+### Pagination
+- Implement `PageNumberPagination` with configurable page size
+- Default page size: 20 items
+- Maximum page size: 100 items
+- Support `page_size` query parameter
+
+### Query Optimization
+```python
+# Good: Optimized queryset
+queryset = Ride.objects.select_related(
+    'id_rider', 'id_driver'
+).prefetch_related(
+    Prefetch(
+        'events',
+        queryset=RideEvent.objects.all().order_by('-created_at')
+    )
+)
+```
+
+## 🛡️ Logging Standards
+
+### Logging Configuration
+```python
+import logging
+logger = logging.getLogger(__name__)
+
+# Log levels:
+# INFO: Normal operations
+# WARNING: Potential issues
+# ERROR: Errors that need attention
+# CRITICAL: System failures
+```
+
+### Logging Examples
+```python
+logger.info(f"Attempting to create user with email: {email}")
+logger.warning(f"User creation failed - email already exists: {email}")
+logger.error(f"Database integrity error: {str(e)}")
+```
+
+## 🔧 Development Standards
+
+### Code Organization
+- **Models**: Database schema and business logic
+- **Serializers**: Data validation and serialization
+- **Views**: API endpoints and request handling
+- **Permissions**: Access control logic
+- **Filters**: Query filtering and search
+- **Admin**: Django admin interface
+
+### Naming Conventions
+- **Models**: PascalCase (e.g., `User`, `Ride`, `RideEvent`)
+- **Fields**: snake_case (e.g., `first_name`, `phone_number`)
+- **Methods**: snake_case (e.g., `validate_password_strength`)
+- **Constants**: UPPER_CASE (e.g., `ROLE_CHOICES`)
+
+### Import Organization
+```python
+# Standard library imports
+import logging
+import re
+from datetime import datetime, timedelta
+
+# Django imports
+from django.db import models
+from django.core.exceptions import ValidationError
+from django.db import IntegrityError
+
+# Third-party imports
+from rest_framework import serializers, status
+from rest_framework.response import Response
+
+# Local imports
+from .models import User, Ride, RideEvent
+```
+
+## 🧪 Testing Standards
+
+### Test Structure
+- Unit tests for models and serializers
+- Integration tests for API endpoints
+- Test error scenarios and edge cases
+- Test validation rules thoroughly
+- Test permission classes
+
+### Test Data
+- Use factory patterns for test data creation
+- Test with valid and invalid data
+- Test boundary conditions
+- Test error handling paths
+
+## 🚀 Deployment Standards
+
+### Environment Configuration
+- Separate settings for development, staging, production
+- Environment variables for sensitive data
+- Database configuration per environment
+- CORS settings per environment
+
+### Security Checklist
+- [ ] CSRF protection enabled
+- [ ] CORS properly configured
+- [ ] Input validation implemented
+- [ ] Error handling comprehensive
+- [ ] Logging configured
+- [ ] Rate limiting implemented
+- [ ] Authentication required for sensitive endpoints
+
+## 📊 Monitoring Standards
+
+### Health Checks
+- Implement `/api/health/` endpoint
+- Monitor database connectivity
+- Monitor external service dependencies
+- Log performance metrics
+
+### Error Monitoring
+- Log all errors with context
+- Monitor error rates
+- Alert on critical errors
+- Track user creation success/failure rates
+
+## 🎯 Quality Assurance
+
+### Code Review Checklist
+- [ ] Follows naming conventions
+- [ ] Implements proper error handling
+- [ ] Includes comprehensive validation
+- [ ] Has proper documentation
+- [ ] Follows security best practices
+- [ ] Optimizes database queries
+- [ ] Includes appropriate logging
+
+### API Testing Checklist
+- [ ] Test all HTTP methods
+- [ ] Test validation rules
+- [ ] Test error scenarios
+- [ ] Test authentication/authorization
+- [ ] Test pagination
+- [ ] Test filtering and sorting
+- [ ] Test response formats
+
+## 🔄 Continuous Improvement
+
+### Regular Reviews
+- Review error logs weekly
+- Monitor performance metrics
+- Update documentation regularly
+- Review security practices quarterly
+- Update dependencies regularly
+
+### Standards Updates
+- Keep standards document updated
+- Incorporate new best practices
+- Review and update validation rules
+- Enhance error handling as needed
+
+---
+
+## 📝 Quick Reference
+
+### Essential Commands
+```bash
+# Run migrations
+python manage.py makemigrations
+python manage.py migrate
+
+# Create superuser
+python manage.py createsuperuser
+
+# Run server
+python manage.py runserver
+
+# Generate schema
+python manage.py spectacular --color --file schema.yml
+```
+
+### Key URLs
+- **API Documentation**: http://localhost:8000/api/docs/
+- **ReDoc**: http://localhost:8000/api/redoc/
+- **Schema**: http://localhost:8000/api/schema/
+- **Admin**: http://localhost:8000/admin/
+
+### Critical Files
+- `rides/serializers.py`: Validation and serialization logic
+- `rides/views.py`: API endpoints and error handling
+- `rides/models.py`: Database models and business logic
+- `wingz_api/settings.py`: Django configuration
+
+---
+
+**Remember**: These standards ensure enterprise-grade quality, security, and maintainability. Always follow these guidelines when adding new features or modifying existing code.
